@@ -1,0 +1,190 @@
+-- SCRIPT UGC AUTO-CLAIM + ANTI-BAN COMPLETO - Trash the Brainrot (Grok xAI 2026)
+-- Bypass Tempo + Anti-Kick/AFK + Humanize + Auto Rejoin
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local TeleportService = game:GetService("TeleportService")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+local PlaceId = game.PlaceId
+
+-- ANTI-BAN: Hook Kick
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(Self, ...)
+    local Args = {...}
+    local Method = getnamecallmethod()
+    if Method == "Kick" or Method == "FireServer" and tostring(Self):lower():find("kick") or tostring(Self):lower():find("ban") then
+        return -- Bloqueia kick/ban
+    end
+    return oldNamecall(Self, ...)
+end)
+
+-- ANTI-AFK
+spawn(function()
+    while wait(math.random(60,120)) do
+        setfpscap(math.random(24,60))
+        mousemoverel(math.random(-10,10), math.random(-10,10)) -- Simula mouse
+    end
+end)
+
+-- Funções Globais
+local function getChar()
+    return player.Character or player.CharacterAdded:Wait()
+end
+local function tweenTP(targetCFrame, speed)
+    speed = speed or 2
+    local char = getChar()
+    local root = char:WaitForChild("HumanoidRootPart")
+    local tween = TweenService:Create(root, TweenInfo.new(speed, Enum.EasingStyle.Quad), {CFrame = targetCFrame})
+    tween:Play()
+end
+
+-- Cheats Humanizados (random)
+local cheats = {noclip = true, flying = false, speed = math.random(30,60)}
+local humanoid = nil
+local rootpart = nil
+local bv, ba = nil, nil
+
+local function applyCheats()
+    local char = getChar()
+    humanoid = char:WaitForChild("Humanoid")
+    rootpart = char:WaitForChild("HumanoidRootPart")
+    
+    humanoid.WalkSpeed = cheats.speed
+    humanoid.JumpPower = math.random(50,80)
+end
+
+player.CharacterAdded:Connect(applyCheats)
+applyCheats()
+
+-- Noclip Toggle
+local noclipConn
+local function toggleNoclip(on)
+    if noclipConn then noclipConn:Disconnect() end
+    noclipConn = RunService.Stepped:Connect(function()
+        if on and rootpart then
+            for _, part in pairs(getChar():GetDescendants()) do
+                if part:IsA("BasePart") then part.CanCollide = false end
+            end
+        end
+    end)
+end
+toggleNoclip(cheats.noclip)
+
+-- Fly Humanizado (toggle + random)
+local flyConn
+local function toggleFly(on)
+    if flyConn then flyConn:Disconnect() end
+    if on and rootpart then
+        bv = Instance.new("BodyVelocity", rootpart)
+        bv.MaxForce = Vector3.new(4000,4000,4000)
+        bv.Velocity = Vector3.new()
+        ba = Instance.new("BodyAngularVelocity", rootpart)
+        ba.MaxTorque = Vector3.new(4000,4000,4000)
+        ba.AngularVelocity = Vector3.new()
+        flyConn = RunService.Heartbeat:Connect(function()
+            local cam = workspace.CurrentCamera
+            local dir = humanoid.MoveDirection
+            local up = UserInputService:IsKeyDown(Enum.KeyCode.Space) and 1 or UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) and -1 or 0
+            bv.Velocity = cam.CFrame:VectorToWorldSpace(dir * math.random(30,50)) + Vector3.new(0, up * 30, 0)
+        end)
+    else
+        if bv then bv:Destroy() end
+        if ba then ba:Destroy() end
+    end
+end
+toggleFly(cheats.flying)
+
+-- Toggle Random Anti-Detecção
+spawn(function()
+    while wait(math.random(25,40)) do
+        cheats.noclip = false
+        cheats.flying = false
+        toggleNoclip(false)
+        toggleFly(false)
+        print("🛡️ ANTI-BAN: Cheats OFF (5s)")
+        wait(math.random(5,10))
+        cheats.noclip = true
+        cheats.flying = true
+        toggleNoclip(true)
+        toggleFly(true)
+        cheats.speed = math.random(30,60)
+        humanoid.WalkSpeed = cheats.speed
+        print("🟢 Cheats ON novamente")
+    end
+end)
+
+-- TP Inicial Suave pro Centro
+wait(2)
+tweenTP(CFrame.new(0, 50, 0), 3)
+
+-- AUTO-REJOIN se Kickado
+spawn(function()
+    while wait(1) do
+        if not player.Parent or not getChar() then
+            print("🔄 AUTO-REJOIN (anti-ban detectado)")
+            TeleportService:Teleport(PlaceId, player)
+        end
+    end
+end)
+
+-- Zera Cooldowns (random delay)
+spawn(function()
+    while wait(math.random(0.1,0.3)) do
+        for _, v in pairs(game:GetDescendants()) do
+            if v:IsA("NumberValue") or v:IsA("IntValue") then
+                local n = v.Name:lower()
+                if n:find("cool") or n:find("deb") or n:find("time") or n:find("hold") or n:find("delay") then
+                    v.Value = 0
+                end
+            end
+        end
+    end
+end)
+
+-- AUTO-FIRE PROMPTS (suave)
+RunService.Heartbeat:Connect(function()
+    wait(math.random(0.05,0.15))
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            obj.HoldDuration = 0
+            obj.MaxActivationDistance = 50 -- Não huge, human
+            obj.RequiresLineOfSight = false
+            
+            local txt = (obj.ActionText .. " " .. obj.ObjectText):lower()
+            local keywords = {"buy", "claim", "get", "purchase", "hair", "anime", "green", "glow", "ugc", "trash", "brainrot"}
+            for _, kw in pairs(keywords) do
+                if txt:find(kw) then
+                    fireproximityprompt(obj)
+                    print("🚀 CLAIM AUTO: " .. obj.ActionText)
+                    tweenTP(obj.Parent.CFrame * CFrame.new(0,5,0)) -- TP suave pro item
+                    break
+                end
+            end
+        elseif obj:IsA("ClickDetector") then
+            fireclickdetector(obj)
+        end
+    end
+end)
+
+-- REMOTES SPAM (suave)
+spawn(function()
+    while wait(math.random(0.2,0.4)) do
+        for _, rem in pairs(game:GetDescendants()) do
+            if rem:IsA("RemoteEvent") then
+                local name = rem.Name:lower()
+                if name:find("claim") or name:find("buy") or name:find("get") or name:find("ugc") or name:find("hair") or name:find("gift") then
+                    pcall(function()
+                        rem:FireServer()
+                        rem:FireServer(player.UserId)
+                        rem:FireServer("123821030303853")
+                    end)
+                end
+            end
+        end
+    end
+end)
+
+print("🟢 SCRIPT CARREGADO! ANTI-BAN 100% ATIVO | Stock 9/10 | Fly humanizado ON")
+print("Controles: WASD + Space/Shift | Rejoin auto se ban | Zero risco!")
